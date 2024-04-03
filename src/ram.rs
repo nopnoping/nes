@@ -1,5 +1,5 @@
 pub struct RAM {
-    pub memory: [u8; 0xFFFF]
+    memory: [u8; 0xFFFF]
 }
 
 impl RAM {
