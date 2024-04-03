@@ -1,3 +1,18 @@
+#[derive(Debug)]
+#[allow(non_camel_case_types)]
+pub enum AddressingMode {
+    Immediate,
+    ZeroPage,
+    ZeroPage_X,
+    ZeroPage_Y,
+    Absolute,
+    Absolute_X,
+    Absolute_Y,
+    Indirect_X,
+    Indirect_Y,
+    NoneAddressing,
+}
+
 pub struct CPU {
     pub register_a: u8,
     pub register_x: u8,
@@ -28,10 +43,7 @@ impl CPU {
     }
 
     fn inx(&mut self) {
-        match self.register_x.checked_add(1) {
-            Some(v) => self.register_x = v,
-            None => self.register_x = 0,
-        }
+        self.register_x = self.register_x.wrapping_add(1);
         self.update_zero_and_negative_flags(self.register_x);
     }
 
@@ -65,11 +77,29 @@ impl CPU {
     }
 
     fn mem_write_u16(&mut self, pos:u16, data:u16) {
-        let hi = (data > 8) as u8;
+        let hi = (data >> 8) as u8;
         let lo = (data & 0xFF) as u8;
         self.mem_write(pos, lo);
         self.mem_write(pos+1, hi);
     }
+
+    // fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+    //     match mode {
+    //         AddressingMode::Immediate => self.program_counter,
+    //         AddressingMode::ZeroPage => self.mem_read(self.program_counter) as u16,
+    //         AddressingMode::Absolute => self.mem_read_u16(self.program_counter),
+    //         AddressingMode::ZeroPage_X => {
+    //             let pos = self.mem_read(self.program_counter);
+    //             pos.wrapping_add(self.register_x) as u16
+    //         }
+    //         AddressingMode::ZeroPage_Y => {}
+    //         AddressingMode::Absolute_X => {}
+    //         AddressingMode::Absolute_Y => {}
+    //         AddressingMode::Indirect_X => {}
+    //         AddressingMode::Indirect_Y => {}
+    //         AddressingMode::NoneAddressing => {}
+    //     }
+    // }
 
     pub fn reset(&mut self) {
         self.register_a = 0;
@@ -136,8 +166,7 @@ mod test {
     #[test]
     fn test_0xaa_tax_move_a_to_x() {
         let mut cpu = CPU::new();
-        cpu.register_a = 10;
-        cpu.load_and_run(vec![0xaa, 0x00]);
+        cpu.load_and_run(vec![0xa9, 0x0a,0xaa, 0x00]);
 
         assert_eq!(cpu.register_x, 10)
     }
@@ -153,8 +182,7 @@ mod test {
     #[test]
     fn test_inx_overflow() {
         let mut cpu = CPU::new();
-        cpu.register_x = 0xff;
-        cpu.load_and_run(vec![0xe8, 0xe8, 0x00]);
+        cpu.load_and_run(vec![0xa9, 0xff,0xaa,0xe8, 0xe8, 0x00]);
 
         assert_eq!(cpu.register_x, 1)
     }
