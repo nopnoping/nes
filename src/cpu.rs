@@ -132,7 +132,7 @@ impl CPU {
     }
 
     pub fn load(&mut self, program: Vec<u8>) {
-        self.ram.memory[0x8000 .. (0x8000 + program.len())].copy_from_slice(&program[..]);
+        self.ram.write_program(0x8000, program);
         self.ram.write_u16(0xFFFC, 0x8000);
     }
 

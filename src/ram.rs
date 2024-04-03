@@ -28,4 +28,8 @@ impl RAM {
         self.write(addr, lo);
         self.write(addr.wrapping_add(1), hi)
     }
+
+    pub fn write_program(&mut self, addr:u16, program: Vec<u8>) {
+        self.memory[(addr as usize) .. ((addr as usize) + program.len())].copy_from_slice(&program[..]);
+    }
 }
