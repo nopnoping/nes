@@ -76,7 +76,10 @@ impl CPU {
                 ASM::DEC(_) => {}
                 ASM::DEX(_) => {}
                 ASM::DEY(_) => {}
-                ASM::EOR(_) => {}
+                ASM::EOR(op_code) => {
+                    self.eor(&op_code.mode);
+                    self.program_counter += (op_code.len - 1) as u16;
+                }
                 ASM::INC(_) => {}
                 ASM::INX(_) => self.inx(),
                 ASM::INY(_) => {}
@@ -90,7 +93,10 @@ impl CPU {
                 ASM::LDY(_) => {}
                 ASM::LSR(_) => {}
                 ASM::NOP(_) => {}
-                ASM::ORA(_) => {}
+                ASM::ORA(op_code) => {
+                    self.ora(&op_code.mode);
+                    self.program_counter += (op_code.len - 1) as u16;
+                }
                 ASM::PHA(_) => {}
                 ASM::PHP(_) => {}
                 ASM::PLA(_) => {}
@@ -129,6 +135,22 @@ impl CPU {
         let value = self.ram.read(addr);
 
         self.register_a &= value;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
+    fn ora(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.ram.read(addr);
+
+        self.register_a |= value;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+
+    fn eor(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.ram.read(addr);
+
+        self.register_a ^= value;
         self.update_zero_and_negative_flags(self.register_a);
     }
     fn lda(&mut self, mode: &AddressingMode) {
@@ -274,5 +296,27 @@ mod test {
         cpu.load_and_run(vec![0xa5, 0x10, 0x29, 0x21, 0x00]);
 
         assert_eq!(cpu.register_a, 0x20);
+    }
+
+    #[test]
+    fn test_ora() {
+        let mut cpu = CPU::new();
+
+        cpu.ram.write(0x10, 0x20);
+
+        cpu.load_and_run(vec![0xa5, 0x10, 0x09, 0x21, 0x00]);
+
+        assert_eq!(cpu.register_a, 0x20 | 0x21);
+    }
+
+    #[test]
+    fn test_eor() {
+        let mut cpu = CPU::new();
+
+        cpu.ram.write(0x10, 0x20);
+
+        cpu.load_and_run(vec![0xa5, 0x10, 0x49, 0x21, 0x00]);
+
+        assert_eq!(cpu.register_a, 0x20 ^ 0x21);
     }
 }
