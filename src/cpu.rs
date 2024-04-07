@@ -1,5 +1,6 @@
 use crate::ram::RAM;
 use crate::asm::AddressingMode;
+use crate::asm::ASM;
 
 pub struct CPU {
     pub register_a: u8,
@@ -125,39 +126,75 @@ impl CPU {
 
     pub fn run(&mut self) {
         loop {
-            let op_code = self.ram.read(self.program_counter);
+            let code = self.ram.read(self.program_counter);
+            let asm = ASM::compile_opcode(code);
             self.program_counter += 1;
 
-            match op_code {
-                // LDA
-                0xA9 => {
-                    self.lda(&AddressingMode::Immediate);
-                    self.program_counter += 1;
+            match asm {
+                ASM::ADC(_) => {}
+                ASM::AND(_) => {}
+                ASM::ASL(_) => {}
+                ASM::BCC(_) => {}
+                ASM::BCS(_) => {}
+                ASM::BEQ(_) => {}
+                ASM::BIT(_) => {}
+                ASM::BMI(_) => {}
+                ASM::BNE(_) => {}
+                ASM::BPL(_) => {}
+                ASM::BRK(_) => return,
+                ASM::BVC(_) => {}
+                ASM::BVS(_) => {}
+                ASM::CLC(_) => {}
+                ASM::CLD(_) => {}
+                ASM::CLI(_) => {}
+                ASM::CLV(_) => {}
+                ASM::CMP(_) => {}
+                ASM::CPX(_) => {}
+                ASM::CPY(_) => {}
+                ASM::DEC(_) => {}
+                ASM::DEX(_) => {}
+                ASM::DEY(_) => {}
+                ASM::EOR(_) => {}
+                ASM::INC(_) => {}
+                ASM::INX(_) => self.inx(),
+                ASM::INY(_) => {}
+                ASM::JMP(_) => {}
+                ASM::JSR(_) => {}
+                ASM::LDA(op_code) => {
+                    self.lda(&op_code.mode);
+                    self.program_counter += (op_code.len - 1) as u16;
                 }
-                0xA5 => {
-                    self.lda(&AddressingMode::ZeroPage);
-                    self.program_counter += 1;
+                ASM::LDX(_) => {}
+                ASM::LDY(_) => {}
+                ASM::LSR(_) => {}
+                ASM::NOP(_) => {}
+                ASM::ORA(_) => {}
+                ASM::PHA(_) => {}
+                ASM::PHP(_) => {}
+                ASM::PLA(_) => {}
+                ASM::PLP(_) => {}
+                ASM::ROL(_) => {}
+                ASM::ROR(_) => {}
+                ASM::RTI(_) => {}
+                ASM::RTS(_) => {}
+                ASM::SBC(_) => {}
+                ASM::SEC(_) => {}
+                ASM::SED(_) => {}
+                ASM::SEI(_) => {}
+                ASM::STA(op_code) => {
+                    self.sta(&op_code.mode);
+                    self.program_counter += (op_code.len - 1) as u16;
                 }
-                0xAD => {
-                    self.lda(&AddressingMode::Absolute);
-                    self.program_counter += 2;
+                ASM::STX(_) => {}
+                ASM::STY(_) => {}
+                ASM::TAX(op_code) => {
+                    self.tax();
                 }
-                // STA
-                0x85 => {
-                    self.sta(&AddressingMode::ZeroPage);
-                    self.program_counter += 1;
-                }
-
-                0x95 => {
-                    self.sta(&AddressingMode::ZeroPage_X);
-                    self.program_counter += 1;
-                }
-                0xAA => self.tax(),
-                0xE8 => self.inx(),
-                0x00 => {
-                    return;
-                }
-                _ => {}
+                ASM::TAY(_) => {}
+                ASM::TSX(_) => {}
+                ASM::TXA(_) => {}
+                ASM::TXS(_) => {}
+                ASM::TYA(_) => {}
             }
         }
     }
@@ -186,7 +223,7 @@ mod test {
     #[test]
     fn test_0xaa_tax_move_a_to_x() {
         let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xa9, 0x0a,0xaa, 0x00]);
+        cpu.load_and_run(vec![0xa9, 0x0a, 0xaa, 0x00]);
 
         assert_eq!(cpu.register_x, 10)
     }
@@ -202,7 +239,7 @@ mod test {
     #[test]
     fn test_inx_overflow() {
         let mut cpu = CPU::new();
-        cpu.load_and_run(vec![0xa9, 0xff,0xaa,0xe8, 0xe8, 0x00]);
+        cpu.load_and_run(vec![0xa9, 0xff, 0xaa, 0xe8, 0xe8, 0x00]);
 
         assert_eq!(cpu.register_x, 1)
     }
