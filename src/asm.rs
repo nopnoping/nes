@@ -1,5 +1,6 @@
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
+#[derive(PartialEq)]
 pub enum AddressingMode {
     Immediate,
     ZeroPage,
@@ -91,9 +92,10 @@ pub enum ASM {
 }
 
 impl ASM {
-    pub fn compile_opcode(op_code: u8) -> ASM {
-        match op_code {
+    pub fn compile_opcode(code: u8) -> ASM {
+        match code {
             0x00 => ASM::BRK(OpCode::new(0x00, 1, 7, AddressingMode::NoneAddressing)),
+
             0xEA => ASM::NOP(OpCode::new(0xEA, 1, 2, AddressingMode::NoneAddressing)),
 
             0x69 => ASM::ADC(OpCode::new(0x69, 2, 2, AddressingMode::Absolute)),
@@ -282,8 +284,24 @@ impl ASM {
             0x28 => ASM::PLP(OpCode::new(0x28, 1, 4, AddressingMode::NoneAddressing)),
 
             _ => {
-                panic!()
+                panic!("unknown op code!")
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_compile_code() {
+        let asm = ASM::compile_opcode(0xaa);
+        if let ASM::TAX(op) = asm {
+            assert_eq!(op.code, 0xaa);
+            assert_eq!(op.mode, AddressingMode::NoneAddressing);
+        } else {
+            panic!("err")
         }
     }
 }
