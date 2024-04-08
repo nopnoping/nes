@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 use crate::ram::RAM;
-use crate::asm::AddressingMode;
+use crate::asm::{AddressingMode, OpCode};
 use crate::asm::ASM;
 
 bitflags! {
@@ -61,15 +61,21 @@ impl CPU {
         loop {
             let code = self.ram.read(self.program_counter);
             let asm = ASM::compile_opcode(code);
+            let len = asm.get_len();
             self.program_counter += 1;
 
             match asm {
                 ASM::ADC(op_code) => {}
-                ASM::AND(op_code) => {
-                    self.and(&op_code.mode);
-                    self.program_counter += (op_code.len - 1) as u16;
-                }
-                ASM::ASL(_) => {}
+
+                ASM::AND(op_code) => self.and(&op_code.mode),
+                ASM::EOR(op_code) => self.eor(&op_code.mode),
+                ASM::ORA(op_code) => self.ora(&op_code.mode),
+
+                ASM::ASL(op_code) => self.asl(&op_code.mode),
+                ASM::LSR(op_code) => self.lsr(&op_code.mode),
+                ASM::ROL(op_code) => self.rol(&op_code.mode),
+                ASM::ROR(op_code) => self.ror(&op_code.mode),
+
                 ASM::BCC(_) => {}
                 ASM::BCS(_) => {}
                 ASM::BEQ(_) => {}
@@ -77,7 +83,6 @@ impl CPU {
                 ASM::BMI(_) => {}
                 ASM::BNE(_) => {}
                 ASM::BPL(_) => {}
-                ASM::BRK(_) => return,
                 ASM::BVC(_) => {}
                 ASM::BVS(_) => {}
                 ASM::CLC(_) => {}
@@ -90,60 +95,44 @@ impl CPU {
                 ASM::DEC(_) => {}
                 ASM::DEX(_) => {}
                 ASM::DEY(_) => {}
-                ASM::EOR(op_code) => {
-                    self.eor(&op_code.mode);
-                    self.program_counter += (op_code.len - 1) as u16;
-                }
                 ASM::INC(_) => {}
                 ASM::INX(_) => self.inx(),
                 ASM::INY(_) => {}
                 ASM::JMP(_) => {}
                 ASM::JSR(_) => {}
-                ASM::LDA(op_code) => {
-                    self.lda(&op_code.mode);
-                    self.program_counter += (op_code.len - 1) as u16;
-                }
+                ASM::LDA(op_code) => self.lda(&op_code.mode),
                 ASM::LDX(_) => {}
                 ASM::LDY(_) => {}
-                ASM::LSR(_) => {}
                 ASM::NOP(_) => {}
-                ASM::ORA(op_code) => {
-                    self.ora(&op_code.mode);
-                    self.program_counter += (op_code.len - 1) as u16;
-                }
                 ASM::PHA(_) => {}
                 ASM::PHP(_) => {}
                 ASM::PLA(_) => {}
                 ASM::PLP(_) => {}
-                ASM::ROL(_) => {}
-                ASM::ROR(_) => {}
                 ASM::RTI(_) => {}
                 ASM::RTS(_) => {}
                 ASM::SBC(_) => {}
                 ASM::SEC(_) => {}
                 ASM::SED(_) => {}
                 ASM::SEI(_) => {}
-                ASM::STA(op_code) => {
-                    self.sta(&op_code.mode);
-                    self.program_counter += (op_code.len - 1) as u16;
-                }
+                ASM::STA(op_code) => self.sta(&op_code.mode),
                 ASM::STX(_) => {}
                 ASM::STY(_) => {}
-                ASM::TAX(op_code) => {
-                    self.tax();
-                }
+                ASM::TAX(op_code) => self.tax(),
                 ASM::TAY(_) => {}
                 ASM::TSX(_) => {}
                 ASM::TXA(_) => {}
                 ASM::TXS(_) => {}
                 ASM::TYA(_) => {}
+                ASM::BRK(_) => return,
             }
+
+            self.program_counter += (len - 1) as u16;
         }
     }
 }
 
 impl CPU {
-    // asm
+    // asm fn
     fn and(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.ram.read(addr);
@@ -167,6 +156,125 @@ impl CPU {
         self.register_a ^= value;
         self.update_zero_and_negative_flags(self.register_a);
     }
+
+    fn asl(&mut self, mode: &AddressingMode) {
+        let mut data;
+        let mut addr = 0;
+        match mode {
+            AddressingMode::NoneAddressing => {
+                data = self.register_a;
+            }
+            _ => {
+                addr = self.get_operand_address(mode);
+                data = self.ram.read(addr);
+            }
+        }
+
+        if data >> 7 == 1 {
+            self.set_carry_flag();
+        } else {
+            self.clear_carry_flag();
+        }
+
+        data = data << 1;
+        match mode {
+            AddressingMode::NoneAddressing => self.register_a = data,
+            _ => self.ram.write(addr, data)
+        }
+        self.update_zero_and_negative_flags(data);
+    }
+
+    fn lsr(&mut self, mode: &AddressingMode) {
+        let mut data;
+        let mut addr = 0;
+        match mode {
+            AddressingMode::NoneAddressing => {
+                data = self.register_a;
+            }
+            _ => {
+                addr = self.get_operand_address(mode);
+                data = self.ram.read(addr);
+            }
+        }
+
+        if data & 1 == 1 {
+            self.set_carry_flag();
+        } else {
+            self.clear_carry_flag();
+        }
+
+        data = data >> 1;
+        match mode {
+            AddressingMode::NoneAddressing => self.register_a = data,
+            _ => self.ram.write(addr, data)
+        }
+        self.update_zero_and_negative_flags(data);
+    }
+
+    fn rol(&mut self, mode: &AddressingMode) {
+        let mut data;
+        let mut addr = 0;
+        match mode {
+            AddressingMode::NoneAddressing => {
+                data = self.register_a;
+            }
+            _ => {
+                addr = self.get_operand_address(mode);
+                data = self.ram.read(addr);
+            }
+        }
+
+        let last_carry = self.status.contains(CpuFlags::CARRY);
+
+        if data >> 7 == 1 {
+            self.set_carry_flag();
+        } else {
+            self.clear_carry_flag();
+        }
+
+        data = data << 1;
+        if last_carry {
+            data |= 1;
+        }
+        match mode {
+            AddressingMode::NoneAddressing => self.register_a = data,
+            _ => self.ram.write(addr, data)
+        }
+        self.update_zero_and_negative_flags(data);
+    }
+
+    fn ror(&mut self, mode: &AddressingMode) {
+        let mut data;
+        let mut addr = 0;
+        match mode {
+            AddressingMode::NoneAddressing => {
+                data = self.register_a;
+            }
+            _ => {
+                addr = self.get_operand_address(mode);
+                data = self.ram.read(addr);
+            }
+        }
+
+        let last_carry = self.status.contains(CpuFlags::CARRY);
+
+        if data & 1 == 1 {
+            self.set_carry_flag();
+        } else {
+            self.clear_carry_flag();
+        }
+
+        data = data >> 1;
+        if last_carry {
+            data |= 0x80;
+        }
+        match mode {
+            AddressingMode::NoneAddressing => self.register_a = data,
+            _ => self.ram.write(addr, data)
+        }
+        self.update_zero_and_negative_flags(data);
+    }
+
     fn lda(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.ram.read(addr);
@@ -190,7 +298,7 @@ impl CPU {
         self.update_zero_and_negative_flags(self.register_x);
     }
 
-    // help
+    // help fn
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         if result == 0 {
             self.status.insert(CpuFlags::ZERO);
@@ -203,6 +311,14 @@ impl CPU {
         } else {
             self.status.remove(CpuFlags::NEGATIV);
         }
+    }
+
+    fn set_carry_flag(&mut self) {
+        self.status.insert(CpuFlags::CARRY);
+    }
+
+    fn clear_carry_flag(&mut self) {
+        self.status.remove(CpuFlags::CARRY);
     }
 
     fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
@@ -332,5 +448,17 @@ mod test {
         cpu.load_and_run(vec![0xa5, 0x10, 0x49, 0x21, 0x00]);
 
         assert_eq!(cpu.register_a, 0x20 ^ 0x21);
+    }
+
+    #[test]
+    fn test_asl() {
+        let mut cpu = CPU::new();
+
+        cpu.ram.write(0x10, 0x20);
+
+        cpu.load_and_run(vec![0xa9, 0x10, 0x0a, 0x00]);
+        assert_eq!(cpu.register_a, 0x10 << 1);
+        cpu.load_and_run(vec![0x06, 0x10, 0xa5, 0x10, 0x00]);
+        assert_eq!(cpu.register_a, 0x20 << 1);
     }
 }

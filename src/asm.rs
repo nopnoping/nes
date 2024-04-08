@@ -91,6 +91,7 @@ pub enum ASM {
     TYA(OpCode),
 }
 
+
 impl ASM {
     pub fn compile_opcode(code: u8) -> ASM {
         match code {
@@ -286,6 +287,67 @@ impl ASM {
             _ => {
                 panic!("unknown op code!")
             }
+        }
+    }
+
+    pub fn get_len(&self) -> u8 {
+        match self {
+            ASM::ADC(op_code) => op_code.len,
+            ASM::AND(op_code) => op_code.len,
+            ASM::ASL(op_code) => op_code.len,
+            ASM::BCC(op_code) => op_code.len,
+            ASM::BCS(op_code) => op_code.len,
+            ASM::BEQ(op_code) => op_code.len,
+            ASM::BIT(op_code) => op_code.len,
+            ASM::BMI(op_code) => op_code.len,
+            ASM::BNE(op_code) => op_code.len,
+            ASM::BPL(op_code) => op_code.len,
+            ASM::BRK(op_code) => op_code.len,
+            ASM::BVC(op_code) => op_code.len,
+            ASM::BVS(op_code) => op_code.len,
+            ASM::CLC(op_code) => op_code.len,
+            ASM::CLD(op_code) => op_code.len,
+            ASM::CLI(op_code) => op_code.len,
+            ASM::CLV(op_code) => op_code.len,
+            ASM::CMP(op_code) => op_code.len,
+            ASM::CPX(op_code) => op_code.len,
+            ASM::CPY(op_code) => op_code.len,
+            ASM::DEC(op_code) => op_code.len,
+            ASM::DEX(op_code) => op_code.len,
+            ASM::DEY(op_code) => op_code.len,
+            ASM::EOR(op_code) => op_code.len,
+            ASM::INC(op_code) => op_code.len,
+            ASM::INX(op_code) => op_code.len,
+            ASM::INY(op_code) => op_code.len,
+            ASM::JMP(op_code) => op_code.len,
+            ASM::JSR(op_code) => op_code.len,
+            ASM::LDA(op_code) => op_code.len,
+            ASM::LDX(op_code) => op_code.len,
+            ASM::LDY(op_code) => op_code.len,
+            ASM::LSR(op_code) => op_code.len,
+            ASM::NOP(op_code) => op_code.len,
+            ASM::ORA(op_code) => op_code.len,
+            ASM::PHA(op_code) => op_code.len,
+            ASM::PHP(op_code) => op_code.len,
+            ASM::PLA(op_code) => op_code.len,
+            ASM::PLP(op_code) => op_code.len,
+            ASM::ROL(op_code) => op_code.len,
+            ASM::ROR(op_code) => op_code.len,
+            ASM::RTI(op_code) => op_code.len,
+            ASM::RTS(op_code) => op_code.len,
+            ASM::SBC(op_code) => op_code.len,
+            ASM::SEC(op_code) => op_code.len,
+            ASM::SED(op_code) => op_code.len,
+            ASM::SEI(op_code) => op_code.len,
+            ASM::STA(op_code) => op_code.len,
+            ASM::STX(op_code) => op_code.len,
+            ASM::STY(op_code) => op_code.len,
+            ASM::TAX(op_code) => op_code.len,
+            ASM::TAY(op_code) => op_code.len,
+            ASM::TSX(op_code) => op_code.len,
+            ASM::TXA(op_code) => op_code.len,
+            ASM::TXS(op_code) => op_code.len,
+            ASM::TYA(op_code) => op_code.len,
         }
     }
 }
