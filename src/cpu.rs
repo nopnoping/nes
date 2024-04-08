@@ -80,10 +80,11 @@ impl CPU {
 
                 ASM::BCC(_) => self.bcc(),
                 ASM::BCS(_) => self.bcs(),
-                ASM::BEQ(_) => {}
+                ASM::BEQ(_) => self.beq(),
+                ASM::BNE(_) => self.bne(),
+
                 ASM::BIT(_) => {}
                 ASM::BMI(_) => {}
-                ASM::BNE(_) => {}
                 ASM::BPL(_) => {}
                 ASM::BVC(_) => {}
                 ASM::BVS(_) => {}
@@ -279,6 +280,12 @@ impl CPU {
     }
     fn bcs(&mut self) {
         self.branch(self.status.contains(CpuFlags::CARRY));
+    }
+    fn beq(&mut self) {
+        self.branch(self.status.contains(CpuFlags::ZERO));
+    }
+    fn bne(&mut self) {
+        self.branch(!self.status.contains(CpuFlags::ZERO));
     }
 
     fn lda(&mut self, mode: &AddressingMode) {
