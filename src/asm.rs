@@ -9,6 +9,7 @@ pub enum AddressingMode {
     Absolute,
     Absolute_X,
     Absolute_Y,
+    Indirect,
     Indirect_X,
     Indirect_Y,
     NoneAddressing,
@@ -201,7 +202,7 @@ impl ASM {
             0xe4 => ASM::CPX(OpCode::new(0xe4, 2, 3, AddressingMode::ZeroPage)),
             0xec => ASM::CPX(OpCode::new(0xec, 3, 4, AddressingMode::Absolute)),
 
-            0x4c => ASM::JMP(OpCode::new(0x4c, 3, 3, AddressingMode::NoneAddressing)),
+            0x4c => ASM::JMP(OpCode::new(0x4c, 3, 3, AddressingMode::Absolute)),
             0x6c => ASM::JMP(OpCode::new(0x6c, 3, 5, AddressingMode::NoneAddressing)),
 
             0x20 => ASM::JSR(OpCode::new(0x20, 3, 6, AddressingMode::NoneAddressing)),
