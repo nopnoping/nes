@@ -38,6 +38,7 @@ impl CPU {
             register_y: 0,
             status: CpuFlags::from_bits_truncate(0b100100),
             program_counter: 0,
+            stack_pointer: 0,
             ram: RAM::new(),
         }
     }
@@ -116,15 +117,17 @@ impl CPU {
                 ASM::INY(_) => self.iny(),
 
                 ASM::JMP(op_code) => self.jmp(&op_code.mode),
-                ASM::JSR(_) => {}
+                ASM::JSR(_) => self.jsr(),
+
                 ASM::LDA(op_code) => self.lda(&op_code.mode),
-                ASM::LDX(_) => {}
-                ASM::LDY(_) => {}
-                ASM::NOP(_) => {}
-                ASM::PHA(_) => {}
-                ASM::PHP(_) => {}
-                ASM::PLA(_) => {}
-                ASM::PLP(_) => {}
+                ASM::LDX(op_code) => self.ldx(&op_code.mode),
+                ASM::LDY(op_code) => self.ldy(&op_code.mode),
+
+                ASM::PHA(_) => self.pha(),
+                ASM::PHP(_) => self.php(),
+                ASM::PLA(_) => self.pla(),
+                ASM::PLP(_) => self.plp(),
+
                 ASM::RTI(_) => {}
                 ASM::RTS(_) => {}
                 ASM::SBC(_) => {}
@@ -137,6 +140,8 @@ impl CPU {
                 ASM::TXA(_) => {}
                 ASM::TXS(_) => {}
                 ASM::TYA(_) => {}
+
+                ASM::NOP(_) => {}
                 ASM::BRK(_) => return,
             }
 
@@ -366,11 +371,11 @@ impl CPU {
                 let mem_address = self.ram.read_u16(self.program_counter);
 
                 let indirect_ref = if mem_address & 0x00FF == 0x00FF {
-                    let lo = self.mem_read(mem_address);
-                    let hi = self.mem_read(mem_address & 0xFF00);
+                    let lo = self.ram.read(mem_address);
+                    let hi = self.ram.read(mem_address & 0xFF00);
                     (hi as u16) << 8 | (lo as u16)
                 } else {
-                    self.mem_read_u16(mem_address)
+                    self.ram.read_u16(mem_address)
                 };
 
                 self.program_counter = indirect_ref;
@@ -378,7 +383,11 @@ impl CPU {
             _ => {}
         }
     }
-    fn jsr(&mut self) {}
+    fn jsr(&mut self) {
+        self.stack_push_u16(self.program_counter + 2 - 1);
+        let target_pc = self.ram.read_u16(self.program_counter);
+        self.program_counter = target_pc;
+    }
 
     fn lda(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
@@ -386,6 +395,32 @@ impl CPU {
 
         self.register_a = value;
         self.update_zero_and_negative_flags(self.register_a);
+    }
+    fn ldx(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.ram.read(addr);
+
+        self.register_x = value;
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+    fn ldy(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let value = self.ram.read(addr);
+
+        self.register_y = value;
+        self.update_zero_and_negative_flags(self.register_y);
+    }
+
+    fn pha(&mut self) { self.stack_push(self.register_a); }
+    fn php(&mut self) { self.stack_push(self.status.bits()); }
+    fn pla(&mut self) {
+        self.register_a = self.stack_pop();
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+    fn plp(&mut self) {
+        self.status = CpuFlags::from_bits_truncate(self.stack_pop());
+        self.status.remove(CpuFlags::BREAK);
+        self.status.insert(CpuFlags::BREAK2);
     }
 
     fn sta(&mut self, mode: &AddressingMode) {
@@ -412,10 +447,10 @@ impl CPU {
 
     fn stack_pop(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
-        self.ram.read(STACK + self.stack_pointer)
+        self.ram.read(STACK + self.stack_pointer as u16)
     }
     fn stack_push(&mut self, data: u8) {
-        self.ram.write(STACK + self.stack_pointer, data);
+        self.ram.write(STACK + self.stack_pointer as u16, data);
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
     fn stack_pop_u16(&mut self) -> u16 {
