@@ -1,7 +1,10 @@
 use bitflags::bitflags;
-use crate::ram::RAM;
-use crate::asm::{AddressingMode, OpCode};
-use crate::asm::ASM;
+use crate::cpu::ram::RAM;
+use crate::cpu::asm::{AddressingMode, OpCode};
+use crate::cpu::asm::ASM;
+
+mod asm;
+mod ram;
 
 bitflags! {
     pub struct CpuFlags: u8 {
@@ -75,10 +78,6 @@ impl CPU {
             let program_counter_cache = self.program_counter;
 
             match asm {
-                ASM::ADC(_) => {}
-
-                ASM::BIT(op_code) => self.bit(&op_code.mode),
-
                 ASM::AND(op_code) => self.and(&op_code.mode),
                 ASM::EOR(op_code) => self.eor(&op_code.mode),
                 ASM::ORA(op_code) => self.ora(&op_code.mode),
@@ -110,10 +109,10 @@ impl CPU {
                 ASM::CPY(op_code) => self.cpy(&op_code.mode),
 
                 ASM::DEC(op_code) => self.dec(&op_code.mode),
-                ASM::DEX(_) => self.dex(),
-                ASM::DEY(_) => self.dey(),
                 ASM::INC(op_code) => self.inc(&op_code.mode),
+                ASM::DEX(_) => self.dex(),
                 ASM::INX(_) => self.inx(),
+                ASM::DEY(_) => self.dey(),
                 ASM::INY(_) => self.iny(),
 
                 ASM::JMP(op_code) => self.jmp(&op_code.mode),
@@ -128,18 +127,23 @@ impl CPU {
                 ASM::PLA(_) => self.pla(),
                 ASM::PLP(_) => self.plp(),
 
-                ASM::RTI(_) => {}
-                ASM::RTS(_) => {}
-                ASM::SBC(_) => {}
+                ASM::RTI(_) => self.rti(),
+                ASM::RTS(_) => self.rts(),
+
                 ASM::STA(op_code) => self.sta(&op_code.mode),
-                ASM::STX(_) => {}
-                ASM::STY(_) => {}
+                ASM::STX(op_code) => self.stx(&op_code.mode),
+                ASM::STY(op_code) => self.sty(&op_code.mode),
+
                 ASM::TAX(_) => self.tax(),
-                ASM::TAY(_) => {}
-                ASM::TSX(_) => {}
-                ASM::TXA(_) => {}
-                ASM::TXS(_) => {}
-                ASM::TYA(_) => {}
+                ASM::TAY(_) => self.tay(),
+                ASM::TSX(_) => self.tsx(),
+                ASM::TXA(_) => self.txa(),
+                ASM::TXS(_) => self.txs(),
+                ASM::TYA(_) => self.tya(),
+
+                ASM::ADC(op_code) => self.adc(&op_code.mode),
+                ASM::SBC(op_code) => self.sbc(&op_code.mode),
+                ASM::BIT(op_code) => self.bit(&op_code.mode),
 
                 ASM::NOP(_) => {}
                 ASM::BRK(_) => return,
@@ -308,20 +312,6 @@ impl CPU {
     fn sei(&mut self) { self.status.insert(CpuFlags::INTERRUPT_DISABLE); }
     fn clv(&mut self) { self.status.remove(CpuFlags::OVERFLOW); }
 
-    fn bit(&mut self, mode: &AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        let data = self.ram.read(addr);
-        let r = self.register_a & data;
-        if r == 0 {
-            self.status.insert(CpuFlags::ZERO);
-        } else {
-            self.status.remove(CpuFlags::ZERO);
-        }
-
-        self.status.set(CpuFlags::OVERFLOW, data & 0b0100_0000 > 0);
-        self.status.set(CpuFlags::NEGATIV, data & 0b1000_0000 > 0);
-    }
-
     fn cmp(&mut self, mode: &AddressingMode) { self.compare(mode, self.register_a); }
     fn cpx(&mut self, mode: &AddressingMode) { self.compare(mode, self.register_x); }
     fn cpy(&mut self, mode: &AddressingMode) { self.compare(mode, self.register_y); }
@@ -423,16 +413,79 @@ impl CPU {
         self.status.insert(CpuFlags::BREAK2);
     }
 
+    fn rti(&mut self) {
+        self.status = CpuFlags::from_bits_truncate(self.stack_pop());
+        self.status.remove(CpuFlags::BREAK);
+        self.status.insert(CpuFlags::BREAK2);
+
+        self.program_counter = self.stack_pop_u16();
+    }
+    fn rts(&mut self) {
+        self.program_counter = self.stack_pop_u16() + 1;
+    }
+
     fn sta(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
-        self.ram.write(addr, self.register_a)
+        self.ram.write(addr, self.register_a);
     }
+    fn stx(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        self.ram.write(addr, self.register_x);
+    }
+    fn sty(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        self.ram.write(addr, self.register_y);
+    }
+
 
     fn tax(&mut self) {
         self.register_x = self.register_a;
         self.update_zero_and_negative_flags(self.register_x);
     }
+    fn tay(&mut self) {
+        self.register_y = self.register_a;
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+    fn tsx(&mut self) {
+        self.register_x = self.stack_pointer;
+        self.update_zero_and_negative_flags(self.register_x);
+    }
+    fn txa(&mut self) {
+        self.register_a = self.register_x;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
+    fn txs(&mut self) {
+        self.stack_pointer = self.register_x;
+        self.update_zero_and_negative_flags(self.stack_pointer);
+    }
+    fn tya(&mut self) {
+        self.register_a = self.register_y;
+        self.update_zero_and_negative_flags(self.register_a);
+    }
 
+    fn bit(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let data = self.ram.read(addr);
+        let r = self.register_a & data;
+        if r == 0 {
+            self.status.insert(CpuFlags::ZERO);
+        } else {
+            self.status.remove(CpuFlags::ZERO);
+        }
+
+        self.status.set(CpuFlags::OVERFLOW, data & 0b0100_0000 > 0);
+        self.status.set(CpuFlags::NEGATIV, data & 0b1000_0000 > 0);
+    }
+    fn adc(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let data = self.ram.read(addr);
+        self.add_to_register_a(data);
+    }
+    fn sbc(&mut self, mode: &AddressingMode) {
+        let addr = self.get_operand_address(mode);
+        let data = self.ram.read(addr);
+        self.add_to_register_a((data as i8).wrapping_neg().wrapping_sub(1) as u8)
+    }
 
     // help fn
     fn update_zero_and_negative_flags(&mut self, result: u8) {
@@ -465,6 +518,19 @@ impl CPU {
         self.stack_push(lo);
     }
 
+    fn add_to_register_a(&mut self, data: u8) {
+        let sum = (self.register_a as u16)
+            .wrapping_add(data as u16)
+            .wrapping_add(self.status.contains(CpuFlags::CARRY) as u16);
+
+        self.status.set(CpuFlags::CARRY, sum > 0xff);
+
+        let r = sum as u8;
+        self.status.set(CpuFlags::OVERFLOW, (r ^ self.register_a) & (r ^ data) & 0x80 != 0);
+
+        self.register_a = r;
+        self.update_zero_and_negative_flags(r);
+    }
     fn compare(&mut self, mode: &AddressingMode, base: u8) {
         let addr = self.get_operand_address(mode);
         let data = self.ram.read(addr);
