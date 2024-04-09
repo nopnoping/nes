@@ -1,5 +1,4 @@
 use bitflags::bitflags;
-use crate::ram::RAM;
 use crate::asm::AddressingMode;
 use crate::asm::ASM;
 use crate::bus::{Bus, Mem};
@@ -43,7 +42,7 @@ impl Mem for CPU {
 }
 
 impl CPU {
-    pub fn new() -> Self {
+    pub fn new(bus: Bus) -> Self {
         CPU {
             register_a: 0,
             register_x: 0,
@@ -51,7 +50,7 @@ impl CPU {
             status: CpuFlags::from_bits_truncate(0b100100),
             program_counter: 0,
             stack_pointer: 0,
-            bus: Bus::new(),
+            bus,
         }
     }
 

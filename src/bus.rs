@@ -1,11 +1,15 @@
+use crate::cartridges::Rom;
+
 pub struct Bus {
     cpu_ram: [u8; 2048],
+    rom: Rom,
 }
 
 impl Bus {
-    pub fn new() -> Self {
+    pub fn new(rom: Rom) -> Self {
         Bus {
             cpu_ram: [0; 2048],
+            rom,
         }
     }
 }
@@ -46,6 +50,7 @@ impl Mem for Bus {
                 let mirror_addr = addr & 0b00100000_00000111;
                 todo!("PPU is not supported yet")
             }
+            0x8000..=0xffff => self.read_prg_rom(addr),
             _ => {
                 println!("Ignoring mem access at {}", addr);
                 0
@@ -63,9 +68,22 @@ impl Mem for Bus {
                 let mirror_addr = addr & 0b00100000_00000111;
                 todo!("PPU is not supported yet");
             }
+            0x8000..=0xffff => {
+                panic!("Attempt to write to Cartridge ROM space")
+            }
             _ => {
                 println!("Ignoring mem access at {}", addr);
             }
         }
+    }
+}
+
+impl Bus {
+    fn read_prg_rom(&self, mut addr: u16) -> u8 {
+        addr -= 0x8000;
+        if self.rom.prg_rom.len() == 0x4000 && addr > 0x4000 {
+            addr = addr % 0x4000;
+        }
+        self.rom.prg_rom[addr as usize]
     }
 }
