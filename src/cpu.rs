@@ -1,10 +1,7 @@
 use bitflags::bitflags;
-use crate::cpu::ram::RAM;
-use crate::cpu::asm::AddressingMode;
-use crate::cpu::asm::ASM;
-
-mod asm;
-mod ram;
+use crate::ram::RAM;
+use crate::asm::AddressingMode;
+use crate::asm::ASM;
 
 bitflags! {
     pub struct CpuFlags: u8 {
