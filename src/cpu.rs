@@ -31,7 +31,6 @@ pub struct CPU {
     pub program_counter: u16,
     pub stack_pointer: u8,
     pub ram: RAM,
-    pub debug: bool,
 }
 
 impl CPU {
@@ -44,7 +43,6 @@ impl CPU {
             program_counter: 0,
             stack_pointer: 0,
             ram: RAM::new(),
-            debug: false,
         }
     }
 
@@ -160,9 +158,6 @@ impl CPU {
 
             if program_counter_cache == self.program_counter {
                 self.program_counter += (len - 1) as u16;
-            }
-            if self.debug {
-                print!("{:?}\n", &asm);
             }
             callback(self);
         }

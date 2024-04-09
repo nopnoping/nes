@@ -81,7 +81,6 @@ fn handle_user_input(cpu: &mut CPU, event_pump: &mut EventPump) {
             }
             Event::KeyDown { keycode: Some(Keycode::S), .. } => {
                 cpu.ram.write(0xff, 0x73);
-                cpu.debug = true;
             }
             Event::KeyDown { keycode: Some(Keycode::A), .. } => {
                 cpu.ram.write(0xff, 0x61);
