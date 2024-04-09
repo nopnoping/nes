@@ -18,7 +18,7 @@ bitflags! {
 
 const STACK: u16 = 0x0100;
 const STACK_RESET: u8 = 0xfd;
-const PROGRAM_BASE: u16 = 0x600;
+const PROGRAM_BASE: u16 = 0x8600;
 const PROGRAM_START_PTR: u16 = 0xFFFC;
 
 pub struct CPU {
