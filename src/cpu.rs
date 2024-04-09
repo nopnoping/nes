@@ -78,7 +78,6 @@ impl CPU {
             F: FnMut(&mut CPU),
     {
         loop {
-            callback(self);
             let code = self.ram.read(self.program_counter);
             let asm = ASM::compile_opcode(code);
             let len = asm.get_len();
@@ -161,6 +160,7 @@ impl CPU {
             if program_counter_cache == self.program_counter {
                 self.program_counter += (len - 1) as u16;
             }
+            callback(self);
         }
     }
 }
@@ -359,8 +359,6 @@ impl CPU {
     }
 
     fn jmp(&mut self, mode: &AddressingMode) {
-        let addr = self.get_operand_address(mode);
-        self.program_counter = addr;
         match mode {
             AddressingMode::Absolute => {
                 let pc = self.ram.read_u16(self.program_counter);
@@ -554,10 +552,10 @@ impl CPU {
     }
     fn branch(&mut self, condition: bool) {
         if condition {
-            let jump = self.ram.read(self.program_counter) as u16;
+            let jump = self.ram.read(self.program_counter) as i8;
             let jump_addr = self.program_counter
                 .wrapping_add(1)
-                .wrapping_add(jump);
+                .wrapping_add(jump as u16);
             self.program_counter = jump_addr;
         }
     }
@@ -585,17 +583,20 @@ impl CPU {
             }
             AddressingMode::Indirect_X => {
                 let base = self.ram.read(self.program_counter);
+
                 let ptr = base.wrapping_add(self.register_x);
                 let lo = self.ram.read(ptr as u16);
                 let hi = self.ram.read(ptr.wrapping_add(1) as u16);
+
                 (hi as u16) << 8 | (lo as u16)
             }
             AddressingMode::Indirect_Y => {
                 let base = self.ram.read(self.program_counter);
-                let ptr = base.wrapping_add(self.register_y);
-                let lo = self.ram.read(ptr as u16);
-                let hi = self.ram.read(ptr.wrapping_add(1) as u16);
-                (hi as u16) << 8 | (lo as u16)
+
+                let lo = self.ram.read(base as u16);
+                let hi = self.ram.read(base.wrapping_add(1) as u16);
+                let deref_base = (hi as u16) << 8 | (lo as u16);
+                deref_base.wrapping_add(self.register_y as u16)
             }
             AddressingMode::NoneAddressing => {
                 panic!("mode {:?} is not supported", mode);
