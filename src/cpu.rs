@@ -31,6 +31,7 @@ pub struct CPU {
     pub program_counter: u16,
     pub stack_pointer: u8,
     pub ram: RAM,
+    pub debug: bool,
 }
 
 
@@ -44,6 +45,7 @@ impl CPU {
             program_counter: 0,
             stack_pointer: 0,
             ram: RAM::new(),
+            debug: false,
         }
     }
 
@@ -85,7 +87,7 @@ impl CPU {
             self.program_counter += 1;
             let program_counter_cache = self.program_counter;
 
-            match asm {
+            match &asm {
                 ASM::AND(op_code) => self.and(&op_code.mode),
                 ASM::EOR(op_code) => self.eor(&op_code.mode),
                 ASM::ORA(op_code) => self.ora(&op_code.mode),
@@ -159,6 +161,9 @@ impl CPU {
 
             if program_counter_cache == self.program_counter {
                 self.program_counter += (len - 1) as u16;
+            }
+            if self.debug {
+                print!("{:?}\n", &asm);
             }
             callback(self);
         }

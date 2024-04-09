@@ -15,6 +15,7 @@ pub enum AddressingMode {
     NoneAddressing,
 }
 
+#[derive(Debug)]
 pub struct OpCode {
     pub code: u8,
     pub len: u8,
@@ -33,6 +34,7 @@ impl OpCode {
     }
 }
 
+#[derive(Debug)]
 pub enum ASM {
     ADC(OpCode),
     AND(OpCode),
