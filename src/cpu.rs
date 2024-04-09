@@ -1,3 +1,4 @@
+use std::panic::resume_unwind;
 use bitflags::bitflags;
 use crate::cpu::ram::RAM;
 use crate::cpu::asm::AddressingMode;
@@ -33,7 +34,6 @@ pub struct CPU {
     pub ram: RAM,
     pub debug: bool,
 }
-
 
 impl CPU {
     pub fn new() -> Self {
@@ -195,118 +195,92 @@ impl CPU {
     }
 
     fn asl(&mut self, mode: &AddressingMode) {
-        let mut data;
-        let mut addr = 0;
         match mode {
             AddressingMode::NoneAddressing => {
-                data = self.register_a;
+                let mut data = self.register_a;
+                self.status.set(CpuFlags::CARRY, data >> 7 == 1);
+                data = data << 1;
+                self.register_a = data;
+                self.update_zero_and_negative_flags(data);
             }
             _ => {
-                addr = self.get_operand_address(mode);
-                data = self.ram.read(addr);
+                let addr = self.get_operand_address(mode);
+                let mut data = self.mem_read(addr);
+                self.status.set(CpuFlags::CARRY, data >> 7 == 1);
+                data = data << 1;
+                self.mem_write(addr, data);
+                self.update_zero_and_negative_flags(data);
             }
         }
-
-        if data >> 7 == 1 {
-            self.set_carry_flag();
-        } else {
-            self.clear_carry_flag();
-        }
-
-        data = data << 1;
-        match mode {
-            AddressingMode::NoneAddressing => self.register_a = data,
-            _ => self.ram.write(addr, data)
-        }
-        self.update_zero_and_negative_flags(data);
     }
     fn lsr(&mut self, mode: &AddressingMode) {
-        let mut data;
-        let mut addr = 0;
         match mode {
             AddressingMode::NoneAddressing => {
-                data = self.register_a;
+                let mut data = self.register_a;
+                self.status.set(CpuFlags::CARRY, data & 1 == 1);
+                data = data >> 1;
+                self.register_a = data;
+                self.update_zero_and_negative_flags(data);
             }
             _ => {
-                addr = self.get_operand_address(mode);
-                data = self.ram.read(addr);
+                let addr = self.get_operand_address(mode);
+                let mut data = self.mem_read(addr);
+                self.status.set(CpuFlags::CARRY, data & 1 == 1);
+                data = data >> 1;
+                self.mem_write(addr, data);
+                self.update_zero_and_negative_flags(data);
             }
         }
-
-        if data & 1 == 1 {
-            self.set_carry_flag();
-        } else {
-            self.clear_carry_flag();
-        }
-
-        data = data >> 1;
-        match mode {
-            AddressingMode::NoneAddressing => self.register_a = data,
-            _ => self.ram.write(addr, data)
-        }
-        self.update_zero_and_negative_flags(data);
     }
     fn rol(&mut self, mode: &AddressingMode) {
-        let mut data;
-        let mut addr = 0;
         match mode {
             AddressingMode::NoneAddressing => {
-                data = self.register_a;
+                let mut data = self.register_a;
+                let old_carry = self.status.contains(CpuFlags::CARRY);
+
+                self.status.set(CpuFlags::CARRY, data >> 7 == 1);
+                data = (data << 1).wrapping_add(old_carry as u8);
+
+                self.register_a = data;
+                self.update_zero_and_negative_flags(data);
             }
             _ => {
-                addr = self.get_operand_address(mode);
-                data = self.ram.read(addr);
+                let addr = self.get_operand_address(mode);
+                let mut data = self.mem_read(addr);
+                let old_carry = self.status.contains(CpuFlags::CARRY);
+
+                self.status.set(CpuFlags::CARRY, data >> 7 == 1);
+                data = (data << 1).wrapping_add(old_carry as u8);
+
+                self.mem_write(addr, data);
+                self.status.set(CpuFlags::NEGATIV, data >> 7 == 1);
             }
         }
-
-        let last_carry = self.status.contains(CpuFlags::CARRY);
-
-        if data >> 7 == 1 {
-            self.set_carry_flag();
-        } else {
-            self.clear_carry_flag();
-        }
-
-        data = data << 1;
-        if last_carry {
-            data |= 1;
-        }
-        match mode {
-            AddressingMode::NoneAddressing => self.register_a = data,
-            _ => self.ram.write(addr, data)
-        }
-        self.update_zero_and_negative_flags(data);
     }
     fn ror(&mut self, mode: &AddressingMode) {
-        let mut data;
-        let mut addr = 0;
         match mode {
             AddressingMode::NoneAddressing => {
-                data = self.register_a;
+                let mut data = self.register_a;
+                let old_carry = self.status.contains(CpuFlags::CARRY);
+
+                self.status.set(CpuFlags::CARRY, data & 1 == 1);
+                data = (data >> 1).wrapping_add(old_carry as u8);
+
+                self.register_a = data;
+                self.update_zero_and_negative_flags(data);
             }
             _ => {
-                addr = self.get_operand_address(mode);
-                data = self.ram.read(addr);
+                let addr = self.get_operand_address(mode);
+                let mut data = self.mem_read(addr);
+                let old_carry = self.status.contains(CpuFlags::CARRY);
+
+                self.status.set(CpuFlags::CARRY, data & 1 == 1);
+                data = (data >> 1).wrapping_add(old_carry as u8);
+
+                self.mem_write(addr, data);
+                self.status.set(CpuFlags::NEGATIV, data >> 7 == 1);
             }
         }
-
-        let last_carry = self.status.contains(CpuFlags::CARRY);
-
-        if data & 1 == 1 {
-            self.set_carry_flag();
-        } else {
-            self.clear_carry_flag();
-        }
-
-        data = data >> 1;
-        if last_carry {
-            data |= 0x80;
-        }
-        match mode {
-            AddressingMode::NoneAddressing => self.register_a = data,
-            _ => self.ram.write(addr, data)
-        }
-        self.update_zero_and_negative_flags(data);
     }
 
     fn bcs(&mut self) { self.branch(self.status.contains(CpuFlags::CARRY)); }
@@ -507,8 +481,6 @@ impl CPU {
 
     fn set_carry_flag(&mut self) { self.status.insert(CpuFlags::CARRY); }
     fn clear_carry_flag(&mut self) { self.status.remove(CpuFlags::CARRY); }
-    fn set_zero_flag(&mut self) { self.status.insert(CpuFlags::ZERO); }
-    fn clr_zero_flag(&mut self) { self.status.remove(CpuFlags::ZERO); }
 
     fn stack_pop(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
