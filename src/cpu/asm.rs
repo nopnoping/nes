@@ -102,7 +102,7 @@ impl ASM {
 
             0xEA => ASM::NOP(OpCode::new(0xEA, 1, 2, AddressingMode::NoneAddressing)),
 
-            0x69 => ASM::ADC(OpCode::new(0x69, 2, 2, AddressingMode::Absolute)),
+            0x69 => ASM::ADC(OpCode::new(0x69, 2, 2, AddressingMode::Immediate)),
             0x65 => ASM::ADC(OpCode::new(0x65, 2, 3, AddressingMode::ZeroPage)),
             0x75 => ASM::ADC(OpCode::new(0x75, 2, 4, AddressingMode::ZeroPage_X)),
             0x6d => ASM::ADC(OpCode::new(0x6d, 3, 4, AddressingMode::Absolute)),
