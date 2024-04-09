@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 use crate::cpu::ram::RAM;
-use crate::cpu::asm::{AddressingMode, OpCode};
+use crate::cpu::asm::AddressingMode;
 use crate::cpu::asm::ASM;
 
 mod asm;
@@ -30,7 +30,7 @@ pub struct CPU {
     pub status: CpuFlags,
     pub program_counter: u16,
     pub stack_pointer: u8,
-    ram: RAM,
+    pub ram: RAM,
 }
 
 
