@@ -1,4 +1,3 @@
-use std::panic::resume_unwind;
 use bitflags::bitflags;
 use crate::cpu::ram::RAM;
 use crate::cpu::asm::AddressingMode;
@@ -201,14 +200,14 @@ impl CPU {
                 self.status.set(CpuFlags::CARRY, data >> 7 == 1);
                 data = data << 1;
                 self.register_a = data;
-                self.update_zero_and_negative_flags(data);
+                self.update_zero_and_negative_flags(self.register_a);
             }
             _ => {
                 let addr = self.get_operand_address(mode);
-                let mut data = self.mem_read(addr);
+                let mut data = self.ram.read(addr);
                 self.status.set(CpuFlags::CARRY, data >> 7 == 1);
                 data = data << 1;
-                self.mem_write(addr, data);
+                self.ram.write(addr, data);
                 self.update_zero_and_negative_flags(data);
             }
         }
@@ -220,14 +219,14 @@ impl CPU {
                 self.status.set(CpuFlags::CARRY, data & 1 == 1);
                 data = data >> 1;
                 self.register_a = data;
-                self.update_zero_and_negative_flags(data);
+                self.update_zero_and_negative_flags(self.register_a);
             }
             _ => {
                 let addr = self.get_operand_address(mode);
-                let mut data = self.mem_read(addr);
+                let mut data = self.ram.read(addr);
                 self.status.set(CpuFlags::CARRY, data & 1 == 1);
                 data = data >> 1;
-                self.mem_write(addr, data);
+                self.ram.write(addr, data);
                 self.update_zero_and_negative_flags(data);
             }
         }
@@ -246,13 +245,13 @@ impl CPU {
             }
             _ => {
                 let addr = self.get_operand_address(mode);
-                let mut data = self.mem_read(addr);
+                let mut data = self.ram.read(addr);
                 let old_carry = self.status.contains(CpuFlags::CARRY);
 
                 self.status.set(CpuFlags::CARRY, data >> 7 == 1);
                 data = (data << 1).wrapping_add(old_carry as u8);
 
-                self.mem_write(addr, data);
+                self.ram.write(addr, data);
                 self.status.set(CpuFlags::NEGATIV, data >> 7 == 1);
             }
         }
@@ -264,20 +263,26 @@ impl CPU {
                 let old_carry = self.status.contains(CpuFlags::CARRY);
 
                 self.status.set(CpuFlags::CARRY, data & 1 == 1);
-                data = (data >> 1).wrapping_add(old_carry as u8);
+                data = data >> 1;
+                if old_carry {
+                    data |= 0b1000_0000;
+                }
 
                 self.register_a = data;
                 self.update_zero_and_negative_flags(data);
             }
             _ => {
                 let addr = self.get_operand_address(mode);
-                let mut data = self.mem_read(addr);
+                let mut data = self.ram.read(addr);
                 let old_carry = self.status.contains(CpuFlags::CARRY);
 
                 self.status.set(CpuFlags::CARRY, data & 1 == 1);
-                data = (data >> 1).wrapping_add(old_carry as u8);
+                data = data >> 1;
+                if old_carry {
+                    data |= 0b1000_0000;
+                }
 
-                self.mem_write(addr, data);
+                self.ram.write(addr, data);
                 self.status.set(CpuFlags::NEGATIV, data >> 7 == 1);
             }
         }
@@ -388,19 +393,24 @@ impl CPU {
     }
 
     fn pha(&mut self) { self.stack_push(self.register_a); }
-    fn php(&mut self) { self.stack_push(self.status.bits()); }
+    fn php(&mut self) {
+        let mut flags = self.status.clone();
+        flags.insert(CpuFlags::BREAK);
+        flags.insert(CpuFlags::BREAK2);
+        self.stack_push(flags.bits());
+    }
     fn pla(&mut self) {
         self.register_a = self.stack_pop();
         self.update_zero_and_negative_flags(self.register_a);
     }
     fn plp(&mut self) {
-        self.status = CpuFlags::from_bits_truncate(self.stack_pop());
+        self.status.bits = self.stack_pop();
         self.status.remove(CpuFlags::BREAK);
         self.status.insert(CpuFlags::BREAK2);
     }
 
     fn rti(&mut self) {
-        self.status = CpuFlags::from_bits_truncate(self.stack_pop());
+        self.status.bits = self.stack_pop();
         self.status.remove(CpuFlags::BREAK);
         self.status.insert(CpuFlags::BREAK2);
 
@@ -442,7 +452,6 @@ impl CPU {
     }
     fn txs(&mut self) {
         self.stack_pointer = self.register_x;
-        self.update_zero_and_negative_flags(self.stack_pointer);
     }
     fn tya(&mut self) {
         self.register_a = self.register_y;
@@ -470,7 +479,7 @@ impl CPU {
     fn sbc(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let data = self.ram.read(addr);
-        self.add_to_register_a((data as i8).wrapping_neg().wrapping_sub(1) as u8)
+        self.add_to_register_a(((data as i8).wrapping_neg().wrapping_sub(1)) as u8)
     }
 
     // help fn
@@ -484,10 +493,10 @@ impl CPU {
 
     fn stack_pop(&mut self) -> u8 {
         self.stack_pointer = self.stack_pointer.wrapping_add(1);
-        self.ram.read(STACK + self.stack_pointer as u16)
+        self.ram.read(STACK + (self.stack_pointer as u16))
     }
     fn stack_push(&mut self, data: u8) {
-        self.ram.write(STACK + self.stack_pointer as u16, data);
+        self.ram.write(STACK + (self.stack_pointer as u16), data);
         self.stack_pointer = self.stack_pointer.wrapping_sub(1);
     }
     fn stack_pop_u16(&mut self) -> u16 {
