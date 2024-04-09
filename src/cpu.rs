@@ -21,6 +21,7 @@ bitflags! {
 
 const STACK: u16 = 0x0100;
 const STACK_RESET: u8 = 0xfd;
+const PROGRAM_BASE: u16 = 0x600;
 
 pub struct CPU {
     pub register_a: u8,
@@ -64,12 +65,20 @@ impl CPU {
     }
 
     pub fn load(&mut self, program: Vec<u8>) {
-        self.ram.write_program(0x8000, program);
-        self.ram.write_u16(0xFFFC, 0x8000);
+        self.ram.write_program(PROGRAM_BASE, program);
+        self.ram.write_u16(0xFFFC, PROGRAM_BASE);
     }
 
     pub fn run(&mut self) {
+        self.run_with_callback(|_| {});
+    }
+
+    pub fn run_with_callback<F>(&mut self, mut callback: F)
+        where
+            F: FnMut(&mut CPU),
+    {
         loop {
+            callback(self);
             let code = self.ram.read(self.program_counter);
             let asm = ASM::compile_opcode(code);
             let len = asm.get_len();
