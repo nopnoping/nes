@@ -1,5 +1,8 @@
 mod addr;
 mod control;
+mod mask;
+mod status;
+mod scroll;
 
 use crate::cartridges::Mirroring;
 use crate::ppu::addr::AddrRegister;
@@ -18,6 +21,20 @@ pub struct NesPPU {
     internal_data_buf: u8,
 }
 
+pub trait PpuRegister {
+    fn write_to_ctl(&mut self, value: u8);
+    fn write_to_ppu_addr(&mut self, value: u8);
+    fn write_to_data(&mut self, value: u8);
+    fn read_data(&mut self) -> u8;
+    // fn write_to_mask(&mut self, value: u8);
+    // fn read_status(&mut self) -> u8;
+    // fn write_to_oam_addr(&mut self, value: u8);
+    // fn write_to_oam_data(&mut self, value: u8);
+    // fn read_oam_data(&self) -> u8;
+    // fn write_to_scroll(&mut self, value: u8);
+    // fn write_oam_dma(&mut self, value: &[u8; 256]);
+}
+
 impl NesPPU {
     pub fn new(chr_rom: Vec<u8>, mirroring: Mirroring) -> Self {
         NesPPU {
@@ -34,42 +51,34 @@ impl NesPPU {
         }
     }
 
-    pub fn write_to_ppu_addr(&mut self, value: u8) {
-        self.addr.update(value);
-    }
-
-    pub fn write_to_ctl(&mut self, value: u8) {
-        self.ctl.update(value)
-    }
-
     fn increment_vram_addr(&mut self) {
         self.addr.increment(self.ctl.vram_addr_increment());
     }
 
-    pub fn read_data(&mut self) -> u8 {
-        let addr = self.addr.get();
-        self.increment_vram_addr();
-
-        match addr {
-            0..=0x1fff => {
-                let r = self.internal_data_buf;
-                self.internal_data_buf = self.chr_rom[addr as usize];
-                r
-            }
-            0x2000..=0x2fff => {
-                let r = self.internal_data_buf;
-                self.internal_data_buf = self.vram[self.mirror_vram_addr(addr) as usize];
-                r
-            }
-            0x3000..=0x3eff => panic!("addr space 0x3000..0x3eff is not expected to be used, requested = {} ", addr),
-            0x3f00..=0x3fff => {
-                self.palette_table[(addr - 0x3f00) as usize]
-            }
-            _ => panic!("unexpected access to mirrored space {}", addr),
+    fn mirror_vram_addr(&self, addr: u16) -> u16 {
+        let mirrored_vram = addr & 0b10111111111111; // mirror down 0x3000-0x3eff to 0x2000 - 0x2eff
+        let vram_index = mirrored_vram - 0x2000; // to vram vector
+        let name_table = vram_index / 0x400; // to the name table index
+        match (&self.mirroring, name_table) {
+            (Mirroring::VERTICAL, 2) | (Mirroring::VERTICAL, 3) => vram_index - 0x800,
+            (Mirroring::HORIZONTAL, 1) => vram_index - 0x400,
+            (Mirroring::HORIZONTAL, 2) => vram_index - 0x400,
+            (Mirroring::HORIZONTAL, 3) => vram_index - 0x800,
+            _ => vram_index,
         }
     }
+}
 
-    pub fn write_to_data(&mut self, value: u8) {
+impl PpuRegister for NesPPU {
+    fn write_to_ctl(&mut self, value: u8) {
+        self.ctl.update(value)
+    }
+
+    fn write_to_ppu_addr(&mut self, value: u8) {
+        self.addr.update(value);
+    }
+
+    fn write_to_data(&mut self, value: u8) {
         let addr = self.addr.get();
         match addr {
             0..=0x1fff => println!("attempt to write to chr rom space {}", addr),
@@ -92,16 +101,26 @@ impl NesPPU {
         self.increment_vram_addr();
     }
 
-    pub fn mirror_vram_addr(&self, addr: u16) -> u16 {
-        let mirrored_vram = addr & 0b10111111111111; // mirror down 0x3000-0x3eff to 0x2000 - 0x2eff
-        let vram_index = mirrored_vram - 0x2000; // to vram vector
-        let name_table = vram_index / 0x400; // to the name table index
-        match (&self.mirroring, name_table) {
-            (Mirroring::VERTICAL, 2) | (Mirroring::VERTICAL, 3) => vram_index - 0x800,
-            (Mirroring::HORIZONTAL, 1) => vram_index - 0x400,
-            (Mirroring::HORIZONTAL, 2) => vram_index - 0x400,
-            (Mirroring::HORIZONTAL, 3) => vram_index - 0x800,
-            _ => vram_index,
+    fn read_data(&mut self) -> u8 {
+        let addr = self.addr.get();
+        self.increment_vram_addr();
+
+        match addr {
+            0..=0x1fff => {
+                let r = self.internal_data_buf;
+                self.internal_data_buf = self.chr_rom[addr as usize];
+                r
+            }
+            0x2000..=0x2fff => {
+                let r = self.internal_data_buf;
+                self.internal_data_buf = self.vram[self.mirror_vram_addr(addr) as usize];
+                r
+            }
+            0x3000..=0x3eff => panic!("addr space 0x3000..0x3eff is not expected to be used, requested = {} ", addr),
+            0x3f00..=0x3fff => {
+                self.palette_table[(addr - 0x3f00) as usize]
+            }
+            _ => panic!("unexpected access to mirrored space {}", addr),
         }
     }
 }

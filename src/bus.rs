@@ -1,5 +1,5 @@
 use crate::cartridges::Rom;
-use crate::ppu::NesPPU;
+use crate::ppu::{NesPPU, PpuRegister};
 
 pub struct Bus {
     cpu_ram: [u8; 2048],
@@ -42,6 +42,17 @@ const RAM_MIRRORS_END: u16 = 0x1FFF;
 const PPU_REGISTERS: u16 = 0x2000;
 const PPU_REGISTERS_MIRRORS_END: u16 = 0x3FFF;
 
+const CONTROLLER_REG: u16 = 0x2000;
+const MASK_REG: u16 = 0x2001;
+const STATUS_REG: u16 = 0x2002;
+const OAM_ADDRESS_REG: u16 = 0x2003;
+const OAM_DATA_REG: u16 = 0x2004;
+const SCROLL_REG: u16 = 0x2005;
+const ADDRESS_REG: u16 = 0x2006;
+const DATA_REG: u16 = 0x2007;
+const OAM_DMA_REG: u16 = 0x4014;
+
+
 impl Mem for Bus {
     fn mem_read(&mut self, addr: u16) -> u8 {
         match addr {
@@ -49,10 +60,14 @@ impl Mem for Bus {
                 let mirror_addr = addr & 0b00000111_11111111;
                 self.cpu_ram[mirror_addr as usize]
             }
-            0x2000 | 0x2001 | 0x2003 | 0x2005 | 0x2006 | 0x4014 => {
+
+            CONTROLLER_REG | MASK_REG | OAM_ADDRESS_REG | SCROLL_REG | ADDRESS_REG | OAM_DMA_REG => {
                 panic!("Attempt to read from write-only PPU address {:x}", addr);
             }
-            0x2007 => self.ppu.read_data(),
+
+            STATUS_REG => 0,
+            OAM_DATA_REG => 0,
+            DATA_REG => self.ppu.read_data(),
 
             0x2008..=PPU_REGISTERS_MIRRORS_END => {
                 let mirror_down_addr = addr & 0b00100000_00000111;
@@ -72,14 +87,14 @@ impl Mem for Bus {
                 let mirror_addr = addr & 0b00000111_11111111;
                 self.cpu_ram[mirror_addr as usize] = data;
             }
-            0x2000 => {
+            CONTROLLER_REG => {
                 self.ppu.write_to_ctl(data);
             }
 
-            0x2006 => {
+            ADDRESS_REG => {
                 self.ppu.write_to_ppu_addr(data);
             }
-            0x2007 => {
+            DATA_REG => {
                 self.ppu.write_to_data(data);
             }
 
