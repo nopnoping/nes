@@ -35,7 +35,7 @@ pub struct CPU {
 }
 
 impl Mem for CPU {
-    fn mem_read(&self, addr: u16) -> u8 {
+    fn mem_read(&mut self, addr: u16) -> u8 {
         self.bus.mem_read(addr)
     }
 
@@ -764,13 +764,13 @@ impl CPU {
             self.program_counter = jump_addr;
         }
     }
-    fn get_operand_address(&self, mode: &AddressingMode) -> u16 {
+    fn get_operand_address(&mut self, mode: &AddressingMode) -> u16 {
         match mode {
             AddressingMode::Immediate => self.program_counter,
             _ => self.get_absolute_address(mode, self.program_counter),
         }
     }
-    pub fn get_absolute_address(&self, mode: &AddressingMode, addr: u16) -> u16 {
+    pub fn get_absolute_address(&mut self, mode: &AddressingMode, addr: u16) -> u16 {
         match mode {
             AddressingMode::ZeroPage => self.mem_read(addr) as u16,
             AddressingMode::Absolute => self.mem_read_u16(addr),

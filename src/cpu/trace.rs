@@ -3,14 +3,14 @@ use crate::cpu::asm::{AddressingMode, ASM};
 use crate::bus::Mem;
 use crate::cpu::CPU;
 
-pub fn trace(cpu: &CPU) -> String {
+pub fn trace(cpu: &mut CPU) -> String {
     let code = cpu.mem_read(cpu.program_counter);
     let asm = ASM::compile_opcode(code);
     asm.fmt_asm(cpu)
 }
 
 impl ASM {
-    fn fmt_asm(&self, cpu: &CPU) -> String {
+    fn fmt_asm(&self, cpu: &mut CPU) -> String {
         let (asm_str, op_code) = self.get_desc();
 
         let begin = cpu.program_counter;
