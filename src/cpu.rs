@@ -2,9 +2,11 @@ use bitflags::bitflags;
 use crate::cpu::asm::AddressingMode;
 use crate::cpu::asm::ASM;
 use crate::bus::{Bus, Mem};
+use crate::cpu::interrupt::{Interrupt, NMI};
 
 pub mod trace;
 mod asm;
+mod interrupt;
 
 bitflags! {
     pub struct CpuFlags: u8 {
@@ -91,10 +93,14 @@ impl CPU {
             F: FnMut(&mut CPU),
     {
         loop {
+            if let Some(_nmi) = self.bus.poll_nmi_status() {
+                self.interrupt(&NMI);
+            }
             callback(self);
             let code = self.mem_read(self.program_counter);
             let asm = ASM::compile_opcode(code);
-            let len = asm.get_desc().1.len;
+            let op = asm.get_desc().1;
+            let len = op.len;
 
             self.program_counter += 1;
             let program_counter_cache = self.program_counter;
@@ -193,6 +199,7 @@ impl CPU {
                 ASM::_SAX(op_code) => self._sax(&op_code.mode),
             }
 
+            self.bus.tick(op.cycles);
             if program_counter_cache == self.program_counter {
                 self.program_counter += (len - 1) as u16;
             }
@@ -200,8 +207,8 @@ impl CPU {
     }
 }
 
+// asm
 impl CPU {
-    // asm fn
     fn and(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
@@ -683,9 +690,10 @@ impl CPU {
         let data = self.register_y & ((mem_address >> 8) as u8 + 1);
         self.mem_write(mem_address, data)
     }
+}
 
-
-    // help fn
+// help
+impl CPU {
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         self.status.set(CpuFlags::ZERO, result == 0);
         self.status.set(CpuFlags::NEGATIV, result & 0b1000_0000 > 0);
@@ -815,5 +823,18 @@ impl CPU {
                 panic!("mode {:?} is not supported", mode);
             }
         }
+    }
+
+    fn interrupt(&mut self, interrupt: &Interrupt) {
+        self.stack_push_u16(self.program_counter);
+        let mut flag = self.status.clone();
+        flag.set(CpuFlags::BREAK, interrupt.b_flag_mask & 0b010000 == 1);
+        flag.set(CpuFlags::BREAK2, interrupt.b_flag_mask & 0b100000 == 1);
+
+        self.stack_push(flag.bits);
+        self.status.insert(CpuFlags::INTERRUPT_DISABLE);
+
+        self.bus.tick(interrupt.cpu_cycles);
+        self.program_counter = self.mem_read_u16(interrupt.vector_addr);
     }
 }

@@ -5,6 +5,7 @@ pub struct Bus {
     cpu_ram: [u8; 2048],
     prg_rom: Vec<u8>,
     ppu: NesPPU,
+    cycles: usize,
 }
 
 impl Bus {
@@ -13,7 +14,24 @@ impl Bus {
             cpu_ram: [0; 2048],
             prg_rom: rom.prg_rom,
             ppu: NesPPU::new(rom.chr_rom, rom.screen_mirroring),
+            cycles: 0,
         }
+    }
+
+    fn read_prg_rom(&self, mut addr: u16) -> u8 {
+        addr -= 0x8000;
+        if self.prg_rom.len() == 0x4000 && addr >= 0x4000 {
+            addr = addr % 0x4000;
+        }
+        self.prg_rom[addr as usize]
+    }
+
+    pub fn tick(&mut self, cycles: u8) {
+        self.cycles += cycles as usize;
+        self.ppu.tick(cycles * 3);
+    }
+    pub fn poll_nmi_status(&mut self) -> Option<u8> {
+        self.ppu.nmi_interrupt.take()
     }
 }
 
@@ -41,7 +59,6 @@ const RAM: u16 = 0x0000;
 const RAM_MIRRORS_END: u16 = 0x1FFF;
 const PPU_REGISTERS: u16 = 0x2000;
 const PPU_REGISTERS_MIRRORS_END: u16 = 0x3FFF;
-
 const CONTROLLER_REG: u16 = 0x2000;
 const MASK_REG: u16 = 0x2001;
 const STATUS_REG: u16 = 0x2002;
@@ -108,15 +125,5 @@ impl Mem for Bus {
                 println!("Ignoring mem access at {}", addr);
             }
         }
-    }
-}
-
-impl Bus {
-    fn read_prg_rom(&self, mut addr: u16) -> u8 {
-        addr -= 0x8000;
-        if self.prg_rom.len() == 0x4000 && addr >= 0x4000 {
-            addr = addr % 0x4000;
-        }
-        self.prg_rom[addr as usize]
     }
 }
