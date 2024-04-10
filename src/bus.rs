@@ -65,8 +65,8 @@ impl Mem for Bus {
                 panic!("Attempt to read from write-only PPU address {:x}", addr);
             }
 
-            STATUS_REG => 0,
-            OAM_DATA_REG => 0,
+            STATUS_REG => self.ppu.read_status(),
+            OAM_DATA_REG => self.ppu.read_oam_data(),
             DATA_REG => self.ppu.read_data(),
 
             0x2008..=PPU_REGISTERS_MIRRORS_END => {
@@ -87,16 +87,15 @@ impl Mem for Bus {
                 let mirror_addr = addr & 0b00000111_11111111;
                 self.cpu_ram[mirror_addr as usize] = data;
             }
-            CONTROLLER_REG => {
-                self.ppu.write_to_ctl(data);
-            }
 
-            ADDRESS_REG => {
-                self.ppu.write_to_ppu_addr(data);
-            }
-            DATA_REG => {
-                self.ppu.write_to_data(data);
-            }
+            CONTROLLER_REG => self.ppu.write_to_ctl(data),
+            MASK_REG => self.ppu.write_to_mask(data),
+            STATUS_REG => panic!("attempt to write to PPU status register"),
+            OAM_ADDRESS_REG => self.ppu.write_to_oam_addr(data),
+            OAM_DATA_REG => self.ppu.write_to_oam_data(data),
+            SCROLL_REG => self.ppu.write_to_scroll(data),
+            ADDRESS_REG => self.ppu.write_to_ppu_addr(data),
+            DATA_REG => self.ppu.write_to_data(data),
 
             0x2008..=PPU_REGISTERS_MIRRORS_END => {
                 let mirror_down_addr = addr & 0b00100000_00000111;
