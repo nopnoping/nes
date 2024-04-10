@@ -2,4 +2,4 @@ pub mod cpu;
 mod asm;
 pub mod bus;
 pub mod cartridges;
-mod trace;
+pub mod trace;
