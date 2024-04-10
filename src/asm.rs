@@ -1,5 +1,3 @@
-use sdl2::libc::option;
-
 #[derive(Debug)]
 #[allow(non_camel_case_types)]
 #[derive(PartialEq)]
