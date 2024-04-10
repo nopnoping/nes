@@ -1,5 +1,5 @@
 use std::arch::asm;
-use crate::asm::{AddressingMode, ASM};
+use crate::cpu::asm::{AddressingMode, ASM};
 use crate::bus::Mem;
 use crate::cpu::CPU;
 

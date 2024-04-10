@@ -1,7 +1,7 @@
 use nes::bus::Bus;
 use nes::cartridges::Rom;
 use nes::cpu::CPU;
-use nes::trace::trace;
+use nes::cpu::trace::trace;
 
 fn main() {
     //load the game
