@@ -40,6 +40,10 @@ impl AddrRegister {
         }
     }
 
+    pub fn reset_latch(&mut self) {
+        self.hi_ptr = true
+    }
+
     pub fn get(&self) -> u16 {
         ((self.value.0 as u16) << 8) | (self.value.1 as u16)
     }
