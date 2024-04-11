@@ -30,7 +30,7 @@ fn main() {
         .unwrap();
 
     //load the game
-    let bytes: Vec<u8> = std::fs::read("/Users/yifanjun/rust_proj/nes/pacman.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("/Users/yifanjun/rust_proj/nes/super.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
 
     let mut frame = Frame::new();
