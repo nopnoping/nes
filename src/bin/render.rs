@@ -98,7 +98,7 @@ fn main() {
         .unwrap();
 
     //load the game
-    let bytes: Vec<u8> = std::fs::read("/Users/yifanjun/rust_proj/nes/Alter_Ego.nes").unwrap();
+    let bytes: Vec<u8> = std::fs::read("/Users/yifanjun/rust_proj/nes/pacman.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
 
     let mut frame = Frame::new();
@@ -106,7 +106,6 @@ fn main() {
     // run the game cycle
     let bus = Bus::new(rom, move |ppu: &NesPPU| {
         render::render(ppu, &mut frame);
-        println!("www");
         texture.update(None, &frame.data, 256 * 3).unwrap();
 
         canvas.copy(&texture, None, None).unwrap();
