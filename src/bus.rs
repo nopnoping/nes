@@ -1,4 +1,5 @@
 use crate::cartridges::Rom;
+use crate::joypad::Joypad;
 use crate::ppu::{NesPPU, PpuRegister};
 
 pub struct Bus<'a> {
@@ -6,13 +7,14 @@ pub struct Bus<'a> {
     prg_rom: Vec<u8>,
     ppu: NesPPU,
     cycles: usize,
-    gameloop_callback: Box<dyn FnMut(&NesPPU) + 'a>,
+    gameloop_callback: Box<dyn FnMut(&NesPPU, &mut Joypad) + 'a>,
+    joypad: Joypad,
 }
 
 impl<'a> Bus<'a> {
     pub fn new<F>(rom: Rom, gameloop_callback: F) -> Self
         where
-            F: FnMut(&NesPPU) + 'a,
+            F: FnMut(&NesPPU, &mut Joypad) + 'a,
     {
         Bus {
             cpu_ram: [0; 2048],
@@ -20,6 +22,7 @@ impl<'a> Bus<'a> {
             ppu: NesPPU::new(rom.chr_rom, rom.screen_mirroring),
             cycles: 0,
             gameloop_callback: Box::new(gameloop_callback),
+            joypad: Joypad::new(),
         }
     }
 
@@ -35,7 +38,7 @@ impl<'a> Bus<'a> {
         self.cycles += cycles as usize;
         let new_frame = self.ppu.tick(cycles * 3);
         if new_frame {
-            (self.gameloop_callback)(&self.ppu);
+            (self.gameloop_callback)(&self.ppu, &mut self.joypad);
         }
     }
     pub fn poll_nmi_status(&mut self) -> Option<u8> {
@@ -99,10 +102,7 @@ impl Mem for Bus<'_> {
                 0
             }
 
-            0x4016 => {
-                // ignore joypad 1;
-                0
-            }
+            0x4016 => self.joypad.read(),
 
             0x4017 => {
                 // ignore joypad 2
@@ -141,9 +141,7 @@ impl Mem for Bus<'_> {
                 //ignore APU
             }
 
-            0x4016 => {
-                // ignore joypad 1;
-            }
+            0x4016 => self.joypad.write(data),
 
             0x4017 => {
                 // ignore joypad 2
