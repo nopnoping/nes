@@ -2,7 +2,7 @@ use nes::cartridges::Rom;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormatEnum};
-use nes::tiles;
+use nes::render;
 
 fn main() {
     // init sdl2
@@ -27,7 +27,7 @@ fn main() {
     let bytes: Vec<u8> = std::fs::read("/Users/yifanjun/rust_proj/nes/Alter_Ego.nes").unwrap();
     let rom = Rom::new(&bytes).unwrap();
 
-    let right_bank = tiles::show_tile_bank(&rom.chr_rom, 1);
+    let right_bank = render::show_tile_bank(&rom.chr_rom, 1);
 
     texture.update(None, &right_bank.data, 256 * 3).unwrap();
     canvas.copy(&texture, None, None).unwrap();

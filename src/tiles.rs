@@ -1,7 +1,5 @@
-use crate::tiles::frame::Frame;
-
-mod frame;
-mod palette;
+use crate::render::frame::Frame;
+use crate::render::palette;
 
 pub fn show_tile(chr_rom: &Vec<u8>, bank: usize, tile_n: usize) -> Frame {
     assert!(bank <= 1);
