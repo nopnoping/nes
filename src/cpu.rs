@@ -26,17 +26,17 @@ const STACK_RESET: u8 = 0xfd;
 const PROGRAM_BASE: u16 = 0x8600;
 const PROGRAM_START_PTR: u16 = 0xFFFC;
 
-pub struct CPU {
+pub struct CPU<'a> {
     pub register_a: u8,
     pub register_x: u8,
     pub register_y: u8,
     pub status: CpuFlags,
     pub program_counter: u16,
     pub stack_pointer: u8,
-    pub bus: Bus,
+    pub bus: Bus<'a>,
 }
 
-impl Mem for CPU {
+impl<'a> Mem for CPU<'a> {
     fn mem_read(&mut self, addr: u16) -> u8 {
         self.bus.mem_read(addr)
     }
@@ -46,8 +46,8 @@ impl Mem for CPU {
     }
 }
 
-impl CPU {
-    pub fn new(bus: Bus) -> Self {
+impl<'a> CPU<'a> {
+    pub fn new(bus: Bus<'a>) -> Self {
         CPU {
             register_a: 0,
             register_x: 0,
@@ -67,8 +67,8 @@ impl CPU {
         self.stack_pointer = STACK_RESET;
         self.status = CpuFlags::from_bits_truncate(0b100100);
 
-        // self.program_counter = self.mem_read_u16(0xFFFC);
-        self.program_counter = PROGRAM_BASE;
+        self.program_counter = self.mem_read_u16(0xFFFC);
+        // self.program_counter = PROGRAM_BASE;
     }
 
     pub fn load_and_run(&mut self, program: Vec<u8>) {
@@ -208,7 +208,7 @@ impl CPU {
 }
 
 // asm
-impl CPU {
+impl<'a> CPU<'a> {
     fn and(&mut self, mode: &AddressingMode) {
         let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
@@ -693,7 +693,7 @@ impl CPU {
 }
 
 // help
-impl CPU {
+impl<'a> CPU<'a> {
     fn update_zero_and_negative_flags(&mut self, result: u8) {
         self.status.set(CpuFlags::ZERO, result == 0);
         self.status.set(CpuFlags::NEGATIV, result & 0b1000_0000 > 0);

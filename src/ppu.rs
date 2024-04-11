@@ -181,6 +181,11 @@ impl PpuRegister for NesPPU {
                 self.internal_data_buf = self.vram[self.mirror_vram_addr(addr) as usize];
                 r
             }
+            0x3f10 | 0x3f14 | 0x3f18 | 0x3f1c => {
+                let add_mirror = addr - 0x10;
+                self.palette_table[(add_mirror - 0x3f00) as usize]
+            }
+
             0x3000..=0x3eff => panic!("addr space 0x3000..0x3eff is not expected to be used, requested = {} ", addr),
             0x3f00..=0x3fff => {
                 self.palette_table[(addr - 0x3f00) as usize]
